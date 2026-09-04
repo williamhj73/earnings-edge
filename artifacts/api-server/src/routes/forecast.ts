@@ -45,6 +45,31 @@ type Prediction = {
   forecastErrorPct: number;
 };
 
+type StockPriceFeature = {
+  price: number;
+  return5d: number;
+  return20d: number;
+  movingAverage20d: number;
+  movingAverage50d: number;
+  volatility20d: number;
+  revenueGrowth: number;
+};
+
+type StockForecast = {
+  horizon: "1 Month" | "3 Months" | "6 Months";
+  forecastDate: string;
+  currentPrice: number;
+  predictedPrice: number;
+  expectedReturnPct: number;
+};
+
+type StockSeriesPoint = {
+  date: string;
+  price: number;
+  kind: "HISTORICAL" | "CURRENT" | "FORECAST";
+  label: string;
+};
+
 const router: IRouter = Router();
 const NIKE_CIK = "0000320187";
 const SEC_USER_AGENT = "Earnings Edge research contact@replit.com";
@@ -300,6 +325,162 @@ function calculateForecast(quarters: Quarter[]) {
   };
 }
 
+function mean(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+}
+
+function volatility(values: number[]) {
+  const average = mean(values);
+  return Math.sqrt(mean(values.map((value) => (value - average) ** 2)));
+}
+
+function addMonths(date: string, months: number) {
+  const next = new Date(date);
+  next.setUTCMonth(next.getUTCMonth() + months);
+  return next.toISOString().slice(0, 10);
+}
+
+function revenueGrowthAvailableOn(date: string, quarters: Quarter[]) {
+  const cutoff = new Date(date);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 45);
+  const cutoffDate = cutoff.toISOString().slice(0, 10);
+  let growth = 0;
+  for (const quarter of quarters) {
+    if (quarter.endDate > cutoffDate) break;
+    growth = quarter.yoyGrowth;
+  }
+  return growth;
+}
+
+function buildStockFeatures(bars: PriceBar[], quarters: Quarter[]) {
+  const features: Array<StockPriceFeature | null> = Array.from({ length: bars.length }, () => null);
+  for (let index = 50; index < bars.length; index += 1) {
+    const recentReturns: number[] = [];
+    for (let cursor = index - 19; cursor <= index; cursor += 1) {
+      const previous = bars[cursor - 1]?.close;
+      const current = bars[cursor]?.close;
+      if (previous && current) recentReturns.push(current / previous - 1);
+    }
+    features[index] = {
+      price: bars[index].close,
+      return5d: bars[index].close / bars[index - 5].close - 1,
+      return20d: bars[index].close / bars[index - 20].close - 1,
+      movingAverage20d: mean(bars.slice(index - 19, index + 1).map((bar) => bar.close)),
+      movingAverage50d: mean(bars.slice(index - 49, index + 1).map((bar) => bar.close)),
+      volatility20d: volatility(recentReturns),
+      revenueGrowth: revenueGrowthAvailableOn(bars[index].date, quarters),
+    };
+  }
+  return features;
+}
+
+function stockFeatureVector(feature: StockPriceFeature) {
+  return [
+    feature.price / 100,
+    feature.return5d * 100,
+    feature.return20d * 100,
+    feature.movingAverage20d / 100,
+    feature.movingAverage50d / 100,
+    feature.volatility20d * 100,
+    feature.revenueGrowth * 100,
+  ];
+}
+
+function stockTrainingRows(
+  bars: PriceBar[],
+  features: Array<StockPriceFeature | null>,
+  horizon: number,
+  beforeOrigin: number,
+) {
+  const rows: TrainingRow[] = [];
+  for (let origin = 50; origin + horizon < beforeOrigin; origin += 1) {
+    const feature = features[origin];
+    const target = bars[origin + horizon]?.close;
+    if (!feature || !target) continue;
+    rows.push({ features: stockFeatureVector(feature), target: target / 100 });
+  }
+  return rows;
+}
+
+function calculateStockPriceForecast(bars: PriceBar[], quarters: Quarter[]) {
+  const features = buildStockFeatures(bars, quarters);
+  const horizons = [
+    { label: "1 Month" as const, tradingDays: 21, months: 1 },
+    { label: "3 Months" as const, tradingDays: 63, months: 3 },
+    { label: "6 Months" as const, tradingDays: 126, months: 6 },
+  ];
+  const currentFeature = features[bars.length - 1];
+  if (!currentFeature) throw new Error("Not enough price history to build stock features.");
+
+  const forecasts: StockForecast[] = [];
+  const directionalResults: boolean[] = [];
+  const currentPrice = bars[bars.length - 1].close;
+  const currentDate = bars[bars.length - 1].date;
+
+  for (const horizon of horizons) {
+    const trainingRows = stockTrainingRows(bars, features, horizon.tradingDays, bars.length);
+    const predictedPrice = fitAndPredict(trainingRows, stockFeatureVector(currentFeature), 0.5) * 100;
+    forecasts.push({
+      horizon: horizon.label,
+      forecastDate: addMonths(currentDate, horizon.months),
+      currentPrice: Number(currentPrice.toFixed(2)),
+      predictedPrice: Number(predictedPrice.toFixed(2)),
+      expectedReturnPct: Number(((predictedPrice / currentPrice - 1) * 100).toFixed(2)),
+    });
+
+    const firstTestOrigin = Math.max(250, bars.length - 400);
+    for (let origin = firstTestOrigin; origin + horizon.tradingDays < bars.length; origin += 5) {
+      const testFeature = features[origin];
+      const actualPrice = bars[origin + horizon.tradingDays]?.close;
+      if (!testFeature || !actualPrice) continue;
+      const walkForwardRows = stockTrainingRows(bars, features, horizon.tradingDays, origin);
+      if (walkForwardRows.length < 60) continue;
+      const walkForwardPrediction = fitAndPredict(
+        walkForwardRows,
+        stockFeatureVector(testFeature),
+        0.5,
+      ) * 100;
+      directionalResults.push(
+        (walkForwardPrediction - testFeature.price) * (actualPrice - testFeature.price) >= 0,
+      );
+    }
+  }
+
+  const historyStart = Math.max(0, bars.length - 252);
+  const series: StockSeriesPoint[] = [];
+  for (let index = historyStart; index < bars.length - 1; index += 21) {
+    series.push({
+      date: bars[index].date,
+      price: Number(bars[index].close.toFixed(2)),
+      kind: "HISTORICAL",
+      label: "Historical",
+    });
+  }
+  series.push({
+    date: currentDate,
+    price: Number(currentPrice.toFixed(2)),
+    kind: "CURRENT",
+    label: "Current price",
+  });
+  for (const forecast of forecasts) {
+    series.push({
+      date: forecast.forecastDate,
+      price: forecast.predictedPrice,
+      kind: "FORECAST",
+      label: `${forecast.horizon} forecast`,
+    });
+  }
+
+  return {
+    stockPriceModel: "Ridge Regression (walk-forward)",
+    stockPriceForecasts: forecasts,
+    stockPriceSeries: series,
+    historicalDirectionalAccuracyPct: Number(
+      (mean(directionalResults.map((correct) => (correct ? 1 : 0))) * 100).toFixed(2),
+    ),
+  };
+}
+
 router.post("/forecast", async (req: Request, res) => {
   const parsed = RunForecastBody.safeParse(req.body);
   if (!parsed.success || parsed.data.symbol.toUpperCase() !== "NKE") {
@@ -336,6 +517,7 @@ router.post("/forecast", async (req: Request, res) => {
         "Historical predictions use expanding-window validation: each quarter is predicted using only earlier quarters.",
         "Market features are trailing 3-month and 6-month close-to-close returns measured at each fiscal quarter end.",
       ],
+      ...calculateStockPriceForecast(bars, quarters),
       ...forecast,
     });
     res.json(response);

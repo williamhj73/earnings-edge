@@ -13,3 +13,7 @@ export * from './forecastResult';
 export * from './forecastResultModelUsed';
 export * from './healthStatus';
 export * from './modelMetric';
+export * from './stockPriceForecast';
+export * from './stockPriceForecastHorizon';
+export * from './stockPricePoint';
+export * from './stockPricePointKind';

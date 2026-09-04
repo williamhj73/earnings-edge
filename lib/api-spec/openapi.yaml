@@ -89,6 +89,36 @@ components:
         forecastErrorPct:
           type: number
       required: [fiscalQuarter, predictedRevenue, actualRevenue, forecastErrorPct]
+    StockPriceForecast:
+      type: object
+      properties:
+        horizon:
+          type: string
+          enum: [1 Month, 3 Months, 6 Months]
+        forecastDate:
+          type: string
+          format: date
+        currentPrice:
+          type: number
+        predictedPrice:
+          type: number
+        expectedReturnPct:
+          type: number
+      required: [horizon, forecastDate, currentPrice, predictedPrice, expectedReturnPct]
+    StockPricePoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        price:
+          type: number
+        kind:
+          type: string
+          enum: [HISTORICAL, CURRENT, FORECAST]
+        label:
+          type: string
+      required: [date, price, kind, label]
     ForecastResult:
       type: object
       properties:
@@ -129,6 +159,18 @@ components:
           type: array
           items:
             type: string
+        stockPriceModel:
+          type: string
+        stockPriceForecasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockPriceForecast"
+        stockPriceSeries:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockPricePoint"
+        historicalDirectionalAccuracyPct:
+          type: number
       required:
         - symbol
         - currentSharePrice
@@ -145,6 +187,10 @@ components:
         - dataAsOf
         - dataSource
         - sourceNotes
+        - stockPriceModel
+        - stockPriceForecasts
+        - stockPriceSeries
+        - historicalDirectionalAccuracyPct
     ErrorResponse:
       type: object
       properties:

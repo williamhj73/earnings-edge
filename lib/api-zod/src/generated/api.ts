@@ -57,7 +57,22 @@ export const RunForecastResponse = zod.object({
 })),
   "dataAsOf": zod.coerce.date(),
   "dataSource": zod.string(),
-  "sourceNotes": zod.array(zod.string())
+  "sourceNotes": zod.array(zod.string()),
+  "stockPriceModel": zod.string(),
+  "stockPriceForecasts": zod.array(zod.object({
+  "horizon": zod.enum(['1 Month', '3 Months', '6 Months']),
+  "forecastDate": zod.coerce.date(),
+  "currentPrice": zod.number(),
+  "predictedPrice": zod.number(),
+  "expectedReturnPct": zod.number()
+})),
+  "stockPriceSeries": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "price": zod.number(),
+  "kind": zod.enum(['HISTORICAL', 'CURRENT', 'FORECAST']),
+  "label": zod.string()
+})),
+  "historicalDirectionalAccuracyPct": zod.number()
 })
 
 

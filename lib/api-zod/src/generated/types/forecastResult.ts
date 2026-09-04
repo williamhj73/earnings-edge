@@ -8,6 +8,8 @@
 import type { ForecastObservation } from './forecastObservation';
 import type { ForecastResultModelUsed } from './forecastResultModelUsed';
 import type { ModelMetric } from './modelMetric';
+import type { StockPriceForecast } from './stockPriceForecast';
+import type { StockPricePoint } from './stockPricePoint';
 
 export interface ForecastResult {
   symbol: string;
@@ -25,4 +27,8 @@ export interface ForecastResult {
   dataAsOf: Date;
   dataSource: string;
   sourceNotes: string[];
+  stockPriceModel: string;
+  stockPriceForecasts: StockPriceForecast[];
+  stockPriceSeries: StockPricePoint[];
+  historicalDirectionalAccuracyPct: number;
 }

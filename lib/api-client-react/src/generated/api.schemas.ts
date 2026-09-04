@@ -27,6 +27,39 @@ export interface ForecastObservation {
   forecastErrorPct: number;
 }
 
+export type StockPriceForecastHorizon = typeof StockPriceForecastHorizon[keyof typeof StockPriceForecastHorizon];
+
+
+export const StockPriceForecastHorizon = {
+  '1_Month': '1 Month',
+  '3_Months': '3 Months',
+  '6_Months': '6 Months',
+} as const;
+
+export interface StockPriceForecast {
+  horizon: StockPriceForecastHorizon;
+  forecastDate: string;
+  currentPrice: number;
+  predictedPrice: number;
+  expectedReturnPct: number;
+}
+
+export type StockPricePointKind = typeof StockPricePointKind[keyof typeof StockPricePointKind];
+
+
+export const StockPricePointKind = {
+  HISTORICAL: 'HISTORICAL',
+  CURRENT: 'CURRENT',
+  FORECAST: 'FORECAST',
+} as const;
+
+export interface StockPricePoint {
+  date: string;
+  price: number;
+  kind: StockPricePointKind;
+  label: string;
+}
+
 export type ForecastResultModelUsed = typeof ForecastResultModelUsed[keyof typeof ForecastResultModelUsed];
 
 
@@ -51,6 +84,10 @@ export interface ForecastResult {
   dataAsOf: string;
   dataSource: string;
   sourceNotes: string[];
+  stockPriceModel: string;
+  stockPriceForecasts: StockPriceForecast[];
+  stockPriceSeries: StockPricePoint[];
+  historicalDirectionalAccuracyPct: number;
 }
 
 export interface ErrorResponse {

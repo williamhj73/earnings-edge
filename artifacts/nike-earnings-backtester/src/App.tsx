@@ -23,6 +23,7 @@ import {
   type ForecastObservation,
   type ForecastResult,
   type ModelMetric,
+  type StockPricePoint,
 } from '@workspace/api-client-react';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -225,6 +226,74 @@ function ResultsTable({ observations }: { observations: ForecastObservation[] })
   );
 }
 
+function StockPriceChart({ points }: { points: StockPricePoint[] }) {
+  if (!points?.length) return <EmptyState compact title="No stock-price series" body="The service returned no historical price points for this run." />;
+  const width = 920;
+  const height = 290;
+  const pad = { left: 54, right: 22, top: 22, bottom: 48 };
+  const values = points.map((point) => point.price);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  const low = min - range * .18;
+  const high = max + range * .18;
+  const x = (index: number) => pad.left + (index / Math.max(1, points.length - 1)) * (width - pad.left - pad.right);
+  const y = (value: number) => pad.top + (1 - (value - low) / (high - low)) * (height - pad.top - pad.bottom);
+  const path = points.map((point, index) => `${index ? 'L' : 'M'} ${x(index).toFixed(1)} ${y(point.price).toFixed(1)}`).join(' ');
+  const ticks = [0, 1, 2, 3].map((index) => low + ((high - low) * index) / 3);
+  const labels = points
+    .map((point, index) => ({ point, index }))
+    .filter(({ point }) => point.kind !== 'HISTORICAL');
+  return (
+    <div className="overflow-x-auto scrollbar-thin" data-testid="stock-price-chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[650px] w-full" role="img" aria-label="Historical Nike share price with model forecasts">
+        {ticks.map((tick) => <g key={tick}><line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} stroke="hsl(38 21% 80% / .78)" strokeDasharray="3 5" /><text x={pad.left - 9} y={y(tick) + 4} textAnchor="end" fill="hsl(214 10% 47%)" fontSize="10" fontFamily="DM Mono">{formatCurrency(tick)}</text></g>)}
+        <path d={path} fill="none" stroke="hsl(212 66% 46%)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => <g key={`${point.date}-${point.kind}`}><circle cx={x(index)} cy={y(point.price)} r={point.kind === 'FORECAST' ? 5 : point.kind === 'CURRENT' ? 5 : 3} fill={point.kind === 'FORECAST' ? 'hsl(35 92% 57%)' : point.kind === 'CURRENT' ? 'hsl(214 29% 18%)' : 'hsl(43 38% 98%)'} stroke={point.kind === 'HISTORICAL' ? 'hsl(212 66% 46%)' : point.kind === 'CURRENT' ? 'hsl(35 92% 57%)' : 'hsl(35 92% 57%)'} strokeWidth={point.kind === 'HISTORICAL' ? 1.5 : 2.5} /><title>{`${point.label}: ${formatCurrency(point.price)}`}</title></g>)}
+        {labels.map(({ point, index }) => {
+          const shortLabel = point.kind === 'CURRENT' ? 'Current' : point.label.replace(' forecast', '');
+          return <text key={`${point.label}-${index}`} x={x(index)} y={height - 17} textAnchor={index === points.length - 1 ? 'end' : 'middle'} fill={point.kind === 'FORECAST' ? 'hsl(35 72% 42%)' : 'hsl(214 10% 47%)'} fontSize="10" fontFamily="DM Mono">{shortLabel}</text>;
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function StockPriceForecastSection({ result }: { result: ForecastResult }) {
+  const forecasts = result.stockPriceForecasts ?? [];
+  return (
+    <section className="animate-rise-in delay-3 overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] shadow-[var(--shadow-sm)]" data-testid="stock-price-forecast">
+      <div className="border-b border-[hsl(var(--border))] p-5 md:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Eyebrow icon={<TrendingUp size={13} />}>NKE / price intelligence</Eyebrow>
+            <h2 className="mt-2 font-display text-3xl tracking-[-.035em]">Stock Price Forecast</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">A lightweight Ridge Regression forecast using recent returns, moving averages, volatility, and lagged revenue growth.</p>
+          </div>
+          <div className="rounded-lg border border-[hsl(var(--accent)/.55)] bg-[hsl(var(--accent)/.1)] px-3 py-2 text-[10px] font-semibold text-[hsl(var(--accent-foreground))]">Model Forecast – Not Guaranteed</div>
+        </div>
+        <div className="mt-6 overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[680px] border-collapse text-left">
+            <thead><tr className="border-b border-[hsl(var(--border))] text-[10px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]"><th className="pb-3 font-semibold">Horizon</th><th className="pb-3 font-semibold">Forecast date</th><th className="pb-3 font-semibold">Current price</th><th className="pb-3 font-semibold">Predicted price</th><th className="pb-3 text-right font-semibold">Expected return</th></tr></thead>
+            <tbody>{forecasts.map((forecast) => <tr key={forecast.horizon} className="border-b border-[hsl(var(--border)/.7)] last:border-0" data-testid={`stock-forecast-${forecast.horizon.toLowerCase().replaceAll(' ', '-')}`}><td className="py-4 font-semibold">{forecast.horizon}</td><td className="py-4 font-mono text-xs text-[hsl(var(--muted-foreground))]">{formatDate(forecast.forecastDate)}</td><td className="py-4 mono-numbers text-sm">{formatCurrency(forecast.currentPrice)}</td><td className="py-4 mono-numbers text-sm font-semibold text-[hsl(var(--accent-foreground))]">{formatCurrency(forecast.predictedPrice)}</td><td className={`py-4 text-right mono-numbers text-sm font-semibold ${forecast.expectedReturnPct >= 0 ? 'text-[hsl(var(--chart-4))]' : 'text-[hsl(var(--destructive))]'}`}>{formatPct(forecast.expectedReturnPct, 1, true)}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </div>
+      <div className="p-5 md:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><div className="font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Price path / model output</div><h3 className="mt-2 font-display text-2xl tracking-[-.03em]">Historical NKE price → forecast path</h3></div>
+          <div className="font-mono text-[10px] text-[hsl(var(--muted-foreground))]">{result.stockPriceModel}</div>
+        </div>
+        <div className="mt-5"><StockPriceChart points={result.stockPriceSeries ?? []} /></div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border))] pt-4">
+          <div className="flex items-center gap-4 text-[10px] text-[hsl(var(--muted-foreground))]"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--chart-1))]" /> historical</span><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> model forecast</span></div>
+          <div className="font-mono text-xs font-medium">Historical Directional Accuracy: <span className="text-[hsl(var(--chart-4))]">{formatPct(result.historicalDirectionalAccuracyPct, 1)}</span></div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Methodology({ result }: { result: ForecastResult }) {
   const notes = result.sourceNotes ?? [];
   return (
@@ -270,7 +339,7 @@ function Home() {
       <Header onRun={run} pending={isPending} />
       <main className="mx-auto max-w-[1440px] px-5 py-7 md:px-10 md:py-10">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><div className="font-mono text-[10px] uppercase tracking-[.19em] text-[hsl(var(--muted-foreground))]">Equity research / revenue intelligence</div><p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">A concise view of what the next quarter could say about NKE.</p></div><div className="flex items-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))]"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--chart-4))]" /> refreshed on demand</div></div>
-        {!hasRun || isPending ? <LoadingState /> : error ? <ErrorState message={errorMessage(error)} onRetry={run} /> : result ? <div className="space-y-5"><Summary result={result} /><div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,.85fr)]"><ChartSection result={result} /><ModelComparison result={result} /></div><ResultsTable observations={result.observations} /><Methodology result={result} /></div> : <EmptyState title="No forecast loaded" body="Run the model to load the latest NKE revenue view." />}
+        {!hasRun || isPending ? <LoadingState /> : error ? <ErrorState message={errorMessage(error)} onRetry={run} /> : result ? <div className="space-y-5"><Summary result={result} /><div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,.85fr)]"><ChartSection result={result} /><ModelComparison result={result} /></div><ResultsTable observations={result.observations} /><StockPriceForecastSection result={result} /><Methodology result={result} /></div> : <EmptyState title="No forecast loaded" body="Run the model to load the latest NKE revenue view." />}
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border)/.7)] pt-4 text-[10px] text-[hsl(var(--muted-foreground))]"><span className="font-mono uppercase tracking-[.13em]">Earnings Edge / NKE</span><span>Research aid only. Validate assumptions before making investment decisions.</span></footer>
       </main>
     </div>
