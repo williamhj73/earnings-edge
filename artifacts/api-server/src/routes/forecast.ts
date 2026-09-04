@@ -88,6 +88,21 @@ function parseMoney(value: unknown) {
   return Number(String(value ?? "").replace(/[$,]/g, ""));
 }
 
+function nikeFiscalQuarter(endDate: string) {
+  const date = new Date(`${endDate}T00:00:00Z`);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const fiscalYear = month >= 6 ? year + 1 : year;
+  const quarter = month >= 6 && month <= 8
+    ? 1
+    : month >= 9 && month <= 11
+      ? 2
+      : month <= 2
+        ? 3
+        : 4;
+  return `FY${fiscalYear} Q${quarter}`;
+}
+
 async function fetchRevenueFacts() {
   const response = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${NIKE_CIK}.json`, {
     headers: { accept: "application/json", "user-agent": SEC_USER_AGENT },
@@ -126,8 +141,7 @@ async function fetchRevenueFacts() {
   return [...byEndDate.values()]
     .sort((a, b) => String(a.end).localeCompare(String(b.end)))
     .map((fact) => ({
-      fiscalQuarter:
-        fact.fy && fact.fp ? `FY${fact.fy} ${fact.fp}` : `Quarter ended ${fact.end}`,
+      fiscalQuarter: nikeFiscalQuarter(String(fact.end)),
       endDate: String(fact.end),
       revenue: Number(fact.val),
     }));
