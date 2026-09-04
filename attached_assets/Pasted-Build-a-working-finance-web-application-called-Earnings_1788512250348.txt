@@ -1,0 +1,123 @@
+Build a working finance web application called "Earnings Edge".
+
+The first version should analyse Nike (NYSE: NKE) and forecast Nike's next quarterly revenue.
+
+TECHNOLOGY
+Use:
+- Python
+- pandas
+- scikit-learn
+- Streamlit
+- yfinance or another reliable source for market data
+- SEC/company financial data where available
+
+Do not use fake or hard-coded financial figures.
+
+VERSION 1 REQUIREMENTS
+
+1. Retrieve Nike's historical quarterly revenue data.
+
+2. Retrieve NKE historical share-price data.
+
+3. Build a dataset containing:
+- Fiscal quarter
+- Revenue
+- Year-over-year revenue growth
+- Previous-quarter revenue growth
+- NKE 3-month share-price return
+- NKE 6-month share-price return
+
+4. Create a revenue forecasting model.
+
+Start with two models:
+
+MODEL A – Baseline
+Predict next-quarter revenue using historical revenue and revenue growth.
+
+MODEL B – Machine Learning
+Use historical revenue, revenue growth and market variables to predict next-quarter revenue.
+
+Use an appropriate regression model such as:
+- Linear Regression
+- Ridge Regression
+- Random Forest
+
+5. IMPORTANT:
+Prevent look-ahead bias.
+
+For historical testing, the model must only train on quarters that happened before the quarter being predicted.
+
+Use expanding-window or rolling time-series validation.
+
+Do not randomly split the time-series data.
+
+6. Calculate model performance:
+
+- MAE
+- RMSE
+- MAPE
+
+Show which model performs best.
+
+7. Create a Streamlit dashboard.
+
+At the top display:
+
+NIKE (NKE)
+
+Current Share Price
+
+Next Revenue Forecast
+
+Previous Quarter Revenue
+
+Expected Revenue Growth
+
+Model Used
+
+Historical MAPE
+
+8. Create a chart showing:
+
+Actual Quarterly Revenue
+vs
+Predicted Quarterly Revenue
+
+9. Create a historical results table:
+
+Quarter
+Predicted Revenue
+Actual Revenue
+Forecast Error %
+
+10. Add a section called:
+
+MODEL METHODOLOGY
+
+Explain:
+- what data is used
+- which features are used
+- how the model is trained
+- how look-ahead bias is prevented
+- the model's historical accuracy
+- limitations
+
+11. Create clean, professional styling suitable for showing to finance recruiters.
+
+12. Include a README explaining:
+- what the project does
+- how the model works
+- how to run it
+- data sources
+- limitations
+
+Do not build alternative data, analyst consensus, AI research memos or trading strategies yet.
+
+First make this Version 1 completely functional and verify that the revenue data, forecasting model and backtest work correctly.
+
+When finished, show me:
+1. The working application
+2. The model performance
+3. Where the financial data comes from
+4. Any errors or missing data
+5. The project file structure

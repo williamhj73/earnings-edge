@@ -1,6 +1,6 @@
-# [Project name]
+# Earnings Edge
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An investor research desk that forecasts Nike's next quarterly revenue from SEC fundamentals and historical NKE prices.
 
 ## Run & Operate
 
@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/nike-earnings-backtester/src/App.tsx` — Earnings Edge dashboard UI
+- `artifacts/nike-earnings-backtester/src/index.css` — visual theme and typography
+- `artifacts/api-server/src/routes/forecast.ts` — SEC/Nasdaq data retrieval and expanding-window model engine
+- `lib/api-spec/openapi.yaml` — forecast API contract
+- `lib/api-client-react/src/generated/` — generated frontend API hooks and types
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Revenue facts come from the SEC company facts endpoint, with Nasdaq historical daily closes supplying market features.
+- Historical forecasts use expanding-window validation; each target quarter is trained only on earlier quarters.
+- The baseline model uses lagged revenue and revenue-growth features; the machine-learning model adds trailing 3-month and 6-month price returns with ridge regularization.
+- The existing web artifact was repurposed as Earnings Edge so the live preview and shared API routing remain stable.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Earnings Edge shows Nike's current share price, next-quarter revenue forecast, expected growth, selected model, historical MAPE, model-by-model MAE/RMSE/MAPE, actual-versus-predicted revenue, forecast history, and methodology/provenance notes.
 
 ## User preferences
 
@@ -38,7 +45,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Financial data is fetched at run time and can be revised by the upstream SEC or market-data providers.
+- Do not add random train/test splits; the no-look-ahead expanding-window protocol is part of the product's trust model.
 
 ## Pointers
 

@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: forecast
+    description: Revenue forecasting operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /forecast:
+    post:
+      operationId: runForecast
+      tags: [forecast]
+      summary: Run the NKE quarterly revenue forecast
+      description: Retrieves SEC revenue facts and public historical prices, then evaluates expanding-window revenue models.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForecastInput"
+      responses:
+        "200":
+          description: Revenue forecast results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastResult"
+        "502":
+          description: Upstream financial data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +57,97 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+    ForecastInput:
+      type: object
+      properties:
+        symbol:
+          type: string
+          default: NKE
+      required: []
+    ModelMetric:
+      type: object
+      properties:
+        mae:
+          type: number
+        rmse:
+          type: number
+        mape:
+          type: number
+        sampleSize:
+          type: number
+      required: [mae, rmse, mape, sampleSize]
+    ForecastObservation:
+      type: object
+      properties:
+        fiscalQuarter:
+          type: string
+        predictedRevenue:
+          type: number
+        actualRevenue:
+          type: number
+        forecastErrorPct:
+          type: number
+      required: [fiscalQuarter, predictedRevenue, actualRevenue, forecastErrorPct]
+    ForecastResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        currentSharePrice:
+          type: number
+        currentPriceDate:
+          type: string
+          format: date
+        nextFiscalQuarter:
+          type: string
+        nextRevenueForecast:
+          type: number
+        previousQuarterRevenue:
+          type: number
+        expectedRevenueGrowthPct:
+          type: number
+        modelUsed:
+          type: string
+          enum: [Baseline, Machine Learning]
+        historicalMapePct:
+          type: number
+        baselineMetrics:
+          $ref: "#/components/schemas/ModelMetric"
+        machineLearningMetrics:
+          $ref: "#/components/schemas/ModelMetric"
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastObservation"
+        dataAsOf:
+          type: string
+          format: date
+        dataSource:
+          type: string
+        sourceNotes:
+          type: array
+          items:
+            type: string
       required:
-        - status
-
+        - symbol
+        - currentSharePrice
+        - currentPriceDate
+        - nextFiscalQuarter
+        - nextRevenueForecast
+        - previousQuarterRevenue
+        - expectedRevenueGrowthPct
+        - modelUsed
+        - historicalMapePct
+        - baselineMetrics
+        - machineLearningMetrics
+        - observations
+        - dataAsOf
+        - dataSource
+        - sourceNotes
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]

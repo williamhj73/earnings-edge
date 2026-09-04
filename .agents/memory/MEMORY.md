@@ -1,0 +1,1 @@
+- [OpenAPI/Zod compatibility](openapi-zod-compatibility.md) — generated integer schemas may target a newer Zod API than the installed runtime.

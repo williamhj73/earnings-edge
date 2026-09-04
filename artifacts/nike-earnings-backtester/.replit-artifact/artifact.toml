@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Earnings Edge"
+description = "A transparent Nike quarterly revenue forecasting desk with SEC fundamentals, market features, expanding-window validation, model comparison, and forecast history."
+version = "1.0.0"
+id = "artifacts/nike-earnings-backtester"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20125
+
+[services.development]
+run = "pnpm --filter @workspace/nike-earnings-backtester run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nike-earnings-backtester", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/nike-earnings-backtester/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20125"
+BASE_PATH = "/"
