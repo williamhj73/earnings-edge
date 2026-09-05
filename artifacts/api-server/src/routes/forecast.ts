@@ -92,6 +92,8 @@ function nikeFiscalQuarter(endDate: string) {
   const date = new Date(`${endDate}T00:00:00Z`);
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + 1;
+  // Nike's fiscal year ends in May. Use the SEC fact's period end date
+  // rather than fy/fp metadata, which can be repeated on later filings.
   const fiscalYear = month >= 6 ? year + 1 : year;
   const quarter = month >= 6 && month <= 8
     ? 1
@@ -527,9 +529,12 @@ router.post("/forecast", async (req: Request, res) => {
       dataSource: "SEC company facts and Nasdaq historical daily prices",
       sourceNotes: [
         "Quarterly revenue is retrieved from Nike's SEC company facts.",
+        "Fiscal-quarter labels use each SEC fact's period end date and Nike's May fiscal year-end: August is Q1, November is Q2, February is Q3, and May is Q4. SEC fy/fp metadata is not used for labels.",
+        "When SEC company facts contains multiple filings for one period end, the latest filed quarterly fact is retained; revenue values are not synthesized.",
         "Historical share prices are retrieved from Nasdaq's public historical-price endpoint.",
         "Historical predictions use expanding-window validation: each quarter is predicted using only earlier quarters.",
         "Market features are trailing 3-month and 6-month close-to-close returns measured at each fiscal quarter end.",
+        "The stock-price forecast is an experimental statistical model with limited predictive accuracy; historical directional accuracy is not a guarantee.",
       ],
       ...calculateStockPriceForecast(bars, quarters),
       ...forecast,

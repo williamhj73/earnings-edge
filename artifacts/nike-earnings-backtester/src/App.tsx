@@ -220,7 +220,7 @@ function ModelComparison({ result }: { result: ForecastResult }) {
 function ResultsTable({ observations }: { observations: ForecastObservation[] }) {
   return (
     <section className="animate-rise-in delay-2 overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] shadow-[var(--shadow-sm)]" data-testid="historical-results">
-      <div className="flex items-start justify-between gap-4 border-b border-[hsl(var(--border))] p-5 md:p-6"><div><Eyebrow icon={<Database size={13} />}>Audit trail / {observations?.length ?? 0} quarters</Eyebrow><h2 className="mt-2 font-display text-3xl tracking-[-.035em]">Historical results</h2></div><div className="hidden items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-[10px] text-[hsl(var(--muted-foreground))] sm:flex"><FileText size={13} /> forecast errors are signed</div></div>
+      <div className="flex items-start justify-between gap-4 border-b border-[hsl(var(--border))] p-5 md:p-6"><div><Eyebrow icon={<Database size={13} />}>Audit trail / {observations?.length ?? 0} quarters</Eyebrow><h2 className="mt-2 font-display text-3xl tracking-[-.035em]">Historical results</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">Actual revenue is the SEC-reported quarterly figure for the labeled Nike fiscal period.</p></div><div className="hidden items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-[10px] text-[hsl(var(--muted-foreground))] sm:flex"><FileText size={13} /> forecast errors are signed</div></div>
       {!observations?.length ? <EmptyState compact title="No historical results" body="A result table will appear when the API returns observations." /> : <div className="scrollbar-thin overflow-x-auto"><table className="w-full min-w-[640px] border-collapse text-left"><thead><tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] text-[10px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]"><th className="px-5 py-3 font-semibold md:px-6">Fiscal quarter</th><th className="px-3 py-3 font-semibold">Predicted revenue</th><th className="px-3 py-3 font-semibold">Actual revenue</th><th className="px-5 py-3 text-right font-semibold md:px-6">Forecast error</th></tr></thead><tbody>{observations.map((item, index) => <tr key={`${item.fiscalQuarter}-${index}`} className="border-b border-[hsl(var(--border)/.72)] last:border-0 hover:bg-[hsl(var(--secondary)/.3)]" data-testid={`row-observation-${index}`}><td className="px-5 py-4 font-mono text-xs font-medium md:px-6">{item.fiscalQuarter}</td><td className="px-3 py-4 mono-numbers text-xs">{formatRevenue(item.predictedRevenue)}</td><td className="px-3 py-4 mono-numbers text-xs">{formatRevenue(item.actualRevenue)}</td><td className={`px-5 py-4 text-right mono-numbers text-xs font-medium md:px-6 ${item.forecastErrorPct > 0 ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--chart-4))]'}`}>{formatPct(item.forecastErrorPct, 2, true)}</td></tr>)}</tbody></table></div>}
     </section>
   );
@@ -268,9 +268,9 @@ function StockPriceForecastSection({ result }: { result: ForecastResult }) {
           <div>
             <Eyebrow icon={<TrendingUp size={13} />}>NKE / price intelligence</Eyebrow>
             <h2 className="mt-2 font-display text-3xl tracking-[-.035em]">Stock Price Forecast</h2>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">A lightweight Ridge Regression forecast using recent returns, moving averages, volatility, and lagged revenue growth.</p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">An experimental statistical Ridge Regression model using recent returns, moving averages, volatility, and lagged revenue growth. Historical testing shows limited predictive accuracy; forecasts are not guaranteed.</p>
           </div>
-          <div className="rounded-lg border border-[hsl(var(--accent)/.55)] bg-[hsl(var(--accent)/.1)] px-3 py-2 text-[10px] font-semibold text-[hsl(var(--accent-foreground))]">Model Forecast – Not Guaranteed</div>
+          <div className="rounded-lg border border-[hsl(var(--accent)/.55)] bg-[hsl(var(--accent)/.1)] px-3 py-2 text-[10px] font-semibold text-[hsl(var(--accent-foreground))]">Experimental model · limited accuracy</div>
         </div>
         <div className="mt-6 overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[680px] border-collapse text-left">
@@ -287,7 +287,7 @@ function StockPriceForecastSection({ result }: { result: ForecastResult }) {
         <div className="mt-5"><StockPriceChart points={result.stockPriceSeries ?? []} /></div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border))] pt-4">
           <div className="flex items-center gap-4 text-[10px] text-[hsl(var(--muted-foreground))]"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--chart-1))]" /> historical</span><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> model forecast</span></div>
-          <div className="font-mono text-xs font-medium">Historical Directional Accuracy: <span className="text-[hsl(var(--chart-4))]">{formatPct(result.historicalDirectionalAccuracyPct, 1)}</span></div>
+          <div className="font-mono text-xs font-medium">Historical directional accuracy: <span className="text-[hsl(var(--chart-4))]">{formatPct(result.historicalDirectionalAccuracyPct, 1)}</span> <span className="text-[hsl(var(--muted-foreground))]">· experimental / limited</span></div>
         </div>
       </div>
     </section>
