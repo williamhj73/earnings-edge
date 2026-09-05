@@ -88,6 +88,18 @@ function parseMoney(value: unknown) {
   return Number(String(value ?? "").replace(/[$,]/g, ""));
 }
 
+function latestFiledByKey(facts: RevenueFact[], key: (fact: RevenueFact) => string) {
+  const latest = new Map<string, RevenueFact>();
+  for (const fact of facts) {
+    const identifier = key(fact);
+    const previous = latest.get(identifier);
+    if (!previous || String(fact.filed ?? "") > String(previous.filed ?? "")) {
+      latest.set(identifier, fact);
+    }
+  }
+  return latest;
+}
+
 function nikeFiscalQuarter(endDate: string) {
   const date = new Date(`${endDate}T00:00:00Z`);
   const year = date.getUTCFullYear();
@@ -123,24 +135,46 @@ async function fetchRevenueFacts() {
     gaap.RevenueFromContractWithCustomerIncludingAssessedTax;
   const facts = revenueTag?.units?.USD ?? [];
 
-  const quarterly = facts.filter((fact) => {
+  const validRevenueFacts = facts.filter((fact) => {
     if (!fact.start || !fact.end || !fact.val || fact.val <= 0) return false;
     if (fact.form !== "10-Q" && fact.form !== "10-K") return false;
-    const durationDays = (Date.parse(fact.end) - Date.parse(fact.start)) / 86_400_000;
-    return durationDays >= 70 && durationDays <= 110;
+    return true;
   });
 
-  const byEndDate = new Map<string, RevenueFact>();
-  for (const fact of quarterly) {
-    const end = fact.end;
-    if (!end) continue;
-    const previous = byEndDate.get(end);
-    if (!previous || String(fact.filed ?? "") > String(previous.filed ?? "")) {
-      byEndDate.set(end, fact);
+  const durationDays = (fact: RevenueFact) =>
+    (Date.parse(String(fact.end)) - Date.parse(String(fact.start))) / 86_400_000;
+
+  const quarterlyFacts = latestFiledByKey(
+    validRevenueFacts.filter((fact) => durationDays(fact) >= 70 && durationDays(fact) <= 110),
+    (fact) => String(fact.end),
+  );
+  const annualFacts = latestFiledByKey(
+    validRevenueFacts.filter((fact) => fact.form === "10-K" && durationDays(fact) >= 330 && durationDays(fact) <= 380),
+    (fact) => String(fact.end),
+  );
+  const nineMonthFacts = latestFiledByKey(
+    validRevenueFacts.filter((fact) => fact.form === "10-Q" && durationDays(fact) >= 240 && durationDays(fact) <= 300),
+    (fact) => `${fact.start}|${fact.end}`,
+  );
+
+  // Nike's 10-K reports the full fiscal year, while the 10-Q reports the
+  // first nine months. The residual is the official fiscal Q4 revenue.
+  for (const annual of annualFacts.values()) {
+    const nineMonth = [...nineMonthFacts.values()]
+      .filter((fact) => fact.start === annual.start && String(fact.end) < String(annual.end))
+      .sort((a, b) => String(b.end).localeCompare(String(a.end)))[0];
+    if (!nineMonth || quarterlyFacts.has(String(annual.end))) continue;
+
+    const fourthQuarterRevenue = Number(annual.val) - Number(nineMonth.val);
+    if (fourthQuarterRevenue > 0) {
+      quarterlyFacts.set(String(annual.end), {
+        ...annual,
+        val: fourthQuarterRevenue,
+      });
     }
   }
 
-  return [...byEndDate.values()]
+  return [...quarterlyFacts.values()]
     .sort((a, b) => String(a.end).localeCompare(String(b.end)))
     .map((fact) => ({
       fiscalQuarter: nikeFiscalQuarter(String(fact.end)),
@@ -528,9 +562,9 @@ router.post("/forecast", async (req: Request, res) => {
       dataAsOf: latestBar.date,
       dataSource: "SEC company facts and Nasdaq historical daily prices",
       sourceNotes: [
-        "Quarterly revenue is retrieved from Nike's SEC company facts.",
+        "Q1-Q3 revenue is retrieved from Nike's SEC company facts. Fiscal Q4 revenue is calculated only from official SEC figures: the annual 10-K revenue less the corresponding nine-month cumulative 10-Q revenue.",
         "Fiscal-quarter labels use each SEC fact's period end date and Nike's May fiscal year-end: August is Q1, November is Q2, February is Q3, and May is Q4. SEC fy/fp metadata is not used for labels.",
-        "When SEC company facts contains multiple filings for one period end, the latest filed quarterly fact is retained; revenue values are not synthesized.",
+        "When SEC company facts contains multiple filings for one period end, the latest filed fact is retained; no revenue estimates or invented values are used.",
         "Historical share prices are retrieved from Nasdaq's public historical-price endpoint.",
         "Historical predictions use expanding-window validation: each quarter is predicted using only earlier quarters.",
         "Market features are trailing 3-month and 6-month close-to-close returns measured at each fiscal quarter end.",
