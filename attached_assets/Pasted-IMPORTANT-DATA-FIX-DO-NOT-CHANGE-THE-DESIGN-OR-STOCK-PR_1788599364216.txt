@@ -1,0 +1,88 @@
+IMPORTANT DATA FIX — DO NOT CHANGE THE DESIGN OR STOCK PRICE SECTION.
+
+The previous correction did not work.
+
+The app still incorrectly shows:
+- Next quarter = FY2026 Q4
+- Prior quarter revenue = $11.28bn
+- Historical data with no Q4 observations
+
+Nike has ALREADY reported FY2026 Q4.
+
+Official Nike data:
+- FY2026 Q4 ended May 31, 2026
+- FY2026 Q4 revenue was approximately $11.0bn
+- Results were reported June 30, 2026
+- Nike's NEXT earnings report is FY2027 Q1 on October 1, 2026
+
+FIX THE QUARTERLY DATA PIPELINE.
+
+The reason Q4 may be missing is that Nike's Q4 is included in its annual/10-K reporting rather than appearing in exactly the same way as Q1-Q3 quarterly 10-Q facts.
+
+For EVERY fiscal year, construct a complete sequence:
+
+Q1 = quarter ending August
+Q2 = quarter ending November
+Q3 = quarter ending February
+Q4 = quarter ending May
+
+For Q4 revenue:
+
+First use an explicitly reported quarterly Q4 revenue value from Nike's official earnings release / SEC data if available.
+
+If the SEC Company Facts API only provides full-year annual revenue rather than a standalone Q4 value, calculate:
+
+Q4 Revenue =
+Full-Year Revenue - Q1 Revenue - Q2 Revenue - Q3 Revenue
+
+Only do this using verified SEC/Nike figures.
+
+Do not invent data.
+
+Historical Results must become chronological and contain:
+
+FY2022 Q1
+FY2022 Q2
+FY2022 Q3
+FY2022 Q4
+FY2023 Q1
+FY2023 Q2
+FY2023 Q3
+FY2023 Q4
+FY2024 Q1
+FY2024 Q2
+FY2024 Q3
+FY2024 Q4
+FY2025 Q1
+FY2025 Q2
+FY2025 Q3
+FY2025 Q4
+FY2026 Q1
+FY2026 Q2
+FY2026 Q3
+FY2026 Q4
+
+where enough verified data exists.
+
+Then:
+
+- Set FY2026 Q4 as the latest ACTUAL quarter.
+- Set FY2027 Q1 as the NEXT FORECAST quarter.
+- Set prior-quarter revenue using actual FY2026 Q4 revenue.
+- Retrain the ML model with the corrected complete dataset.
+- Rerun expanding-window validation.
+- Recalculate MAPE, MAE and RMSE.
+- Recalculate the FY2027 Q1 revenue forecast.
+- Recalculate expected growth.
+- Update the Actual vs Predicted chart.
+- Update Historical Results.
+
+After making the changes, verify in the interface that:
+
+1. NEXT FISCAL QUARTER says FY2027 Q1.
+2. FY2026 Q4 appears in Historical Results.
+3. FY2025 Q4 appears in Historical Results.
+4. There are no jumps from Q3 directly to the next year's Q1.
+5. The model metrics have actually been recalculated.
+
+Do not make any visual/design changes.
